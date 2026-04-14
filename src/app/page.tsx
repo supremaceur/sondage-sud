@@ -49,7 +49,7 @@ function LandingPage() {
           className="px-6 py-3 rounded-lg font-medium transition text-white"
           style={{ background: "#E60077" }}
         >
-          Commencer
+          Inscription
         </Link>
         <Link
           href="/login"
