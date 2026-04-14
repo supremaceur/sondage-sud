@@ -19,9 +19,10 @@ interface SurveyWithSite extends Survey {
 
 export default function ResultsPage() {
   const { id } = useParams<{ id: string }>();
-  const { role } = useAuth();
+  const { role, profile: userProfile, site: userSite } = useAuth();
   const supabase = createClient();
   const isSuperAdmin = role === "super_admin";
+  const isAdmin = role === "admin";
 
   const [survey, setSurvey] = useState<SurveyWithSite | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -48,19 +49,34 @@ export default function ResultsPage() {
 
       setQuestions((questionsData as Question[]) ?? []);
 
-      const { count } = await supabase
+      // Pour un admin (non super_admin), filtrer les réponses par son site
+      const adminSiteId = isAdmin && userProfile?.site_id ? userProfile.site_id : null;
+
+      // Récupérer les réponses avec le user_id pour pouvoir filtrer par site
+      let responsesQuery = supabase
         .from("responses")
-        .select("*", { count: "exact", head: true })
+        .select("id, user_id")
         .eq("survey_id", id);
 
-      setTotalResponses(count ?? 0);
+      const { data: responsesData } = await responsesQuery;
+      let filteredResponses = responsesData ?? [];
 
-      const { data: responsesData } = await supabase
-        .from("responses")
-        .select("id")
-        .eq("survey_id", id);
+      // Si admin (non super_admin), filtrer par les users de son site
+      if (adminSiteId && filteredResponses.length > 0) {
+        const userIds = filteredResponses.map((r) => r.user_id);
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, site_id")
+          .in("id", userIds)
+          .eq("site_id", adminSiteId);
 
-      const responseIds = (responsesData ?? []).map((r) => r.id);
+        const siteUserIds = new Set((profiles ?? []).map((p) => p.id));
+        filteredResponses = filteredResponses.filter((r) => siteUserIds.has(r.user_id));
+      }
+
+      setTotalResponses(filteredResponses.length);
+
+      const responseIds = filteredResponses.map((r) => r.id);
 
       if (responseIds.length > 0) {
         const { data: answersData } = await supabase
@@ -84,6 +100,9 @@ export default function ResultsPage() {
     setCollapsed((prev) => ({ ...prev, [qId]: !prev[qId] }));
   }
 
+  // Nom du site : pour un admin, c'est son propre site ; pour super_admin, c'est celui du sondage ou "Tous"
+  const siteName = isAdmin && userSite ? userSite.name : (survey?.sites?.name ?? "Tous les sites");
+
   async function handleExport() {
     if (!survey) return;
     await exportToExcel({
@@ -91,7 +110,7 @@ export default function ResultsPage() {
       questions,
       answers,
       totalResponses,
-      siteName: survey.sites?.name,
+      siteName,
     });
   }
 
@@ -155,7 +174,7 @@ export default function ResultsPage() {
         </div>
         <div className="p-4 rounded-xl border shadow-sm" style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}>
           <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--sud-muted)" }}>Site</p>
-          <p className="text-lg font-bold mt-1" style={{ color: "var(--sud-black)" }}>{survey.sites?.name ?? "Tous"}</p>
+          <p className="text-lg font-bold mt-1" style={{ color: "var(--sud-black)" }}>{siteName}</p>
         </div>
         <div className="p-4 rounded-xl border shadow-sm" style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}>
           <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--sud-muted)" }}>Statut</p>
