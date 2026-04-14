@@ -7,7 +7,8 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Survey } from "@/types";
 
 export default function SurveysPage() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const isAdmin = role === "admin" || role === "super_admin";
   const supabase = createClient();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [answeredIds, setAnsweredIds] = useState<Set<string>>(new Set());
@@ -39,19 +40,30 @@ export default function SurveysPage() {
   }, [user]);
 
   if (loading) {
-    return <p className="text-gray-500">Chargement des sondages...</p>;
+    return <p style={{ color: "var(--sud-muted)" }}>Chargement des sondages...</p>;
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white mb-6">Sondages disponibles</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold" style={{ color: "var(--sud-black)" }}>Sondages disponibles</h1>
+        {isAdmin && (
+          <Link
+            href="/admin/create"
+            className="text-white px-4 py-2 rounded-lg font-medium transition"
+            style={{ background: "#E60077" }}
+          >
+            + Nouveau sondage
+          </Link>
+        )}
+      </div>
 
       {surveys.length === 0 ? (
         <div
-          className="text-center py-12 rounded-xl border"
+          className="text-center py-12 rounded-xl border shadow-sm"
           style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
         >
-          <p className="text-gray-500">Aucun sondage disponible pour le moment.</p>
+          <p style={{ color: "var(--sud-muted)" }}>Aucun sondage disponible pour le moment.</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -60,17 +72,17 @@ export default function SurveysPage() {
             return (
               <div
                 key={survey.id}
-                className="rounded-xl p-6 flex flex-col justify-between border transition"
+                className="rounded-xl p-6 flex flex-col justify-between border shadow-sm transition"
                 style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
               >
                 <div>
-                  <h2 className="text-lg font-semibold text-white mb-2">
+                  <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--sud-black)" }}>
                     {survey.title}
                   </h2>
                   {survey.description && (
-                    <p className="text-sm text-gray-500 mb-4">{survey.description}</p>
+                    <p className="text-sm mb-4" style={{ color: "var(--sud-muted)" }}>{survey.description}</p>
                   )}
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs" style={{ color: "#999" }}>
                     Publié le {new Date(survey.created_at).toLocaleDateString("fr-FR")}
                   </p>
                 </div>
@@ -79,7 +91,7 @@ export default function SurveysPage() {
                   {answered ? (
                     <span
                       className="inline-block w-full text-center py-2.5 rounded-lg text-sm font-medium"
-                      style={{ background: "rgba(255,245,157,0.1)", color: "var(--sud-yellow)" }}
+                      style={{ background: "var(--sud-pink-light)", color: "#E60077" }}
                     >
                       Déjà répondu
                     </span>

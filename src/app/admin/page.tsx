@@ -3,160 +3,311 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { Survey, Site } from "@/types";
+import type { Survey, Question, Answer, Site } from "@/types";
 import { useAuth } from "@/components/AuthProvider";
 
 interface SurveyWithSite extends Survey {
   sites: { name: string } | null;
 }
 
+interface ResponseRow {
+  id: string;
+  survey_id: string;
+  user_id: string;
+  submitted_at: string;
+}
+
 export default function AdminPage() {
-  const { role, site } = useAuth();
-  const [surveys, setSurveys] = useState<SurveyWithSite[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { role, site: userSite } = useAuth();
   const supabase = createClient();
 
+  const [surveys, setSurveys] = useState<SurveyWithSite[]>([]);
+  const [responses, setResponses] = useState<ResponseRow[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [siteFilter, setSiteFilter] = useState("");
+
+  const isSuperAdmin = role === "super_admin";
+
   useEffect(() => {
-    loadSurveys();
+    loadDashboard();
   }, []);
 
-  async function loadSurveys() {
-    const { data } = await supabase
-      .from("surveys")
-      .select("*, sites(name)")
-      .order("created_at", { ascending: false });
+  async function loadDashboard() {
+    const [surveysResult, responsesResult] = await Promise.all([
+      supabase.from("surveys").select("*, sites(name)").order("created_at", { ascending: false }),
+      supabase.from("responses").select("id, survey_id, user_id, submitted_at").order("submitted_at", { ascending: false }),
+    ]);
 
-    setSurveys((data as SurveyWithSite[]) ?? []);
+    setSurveys((surveysResult.data as SurveyWithSite[]) ?? []);
+    setResponses((responsesResult.data as ResponseRow[]) ?? []);
+
+    if (isSuperAdmin) {
+      const [sitesResult, usersResult] = await Promise.all([
+        supabase.from("sites").select("*").order("name"),
+        supabase.from("profiles").select("id", { count: "exact", head: true }),
+      ]);
+      setSites((sitesResult.data as Site[]) ?? []);
+      setTotalUsers(usersResult.count ?? 0);
+    }
+
     setLoading(false);
   }
 
   async function toggleActive(survey: Survey) {
-    await supabase
-      .from("surveys")
-      .update({ is_active: !survey.is_active })
-      .eq("id", survey.id);
-
-    loadSurveys();
+    await supabase.from("surveys").update({ is_active: !survey.is_active }).eq("id", survey.id);
+    loadDashboard();
   }
 
   async function deleteSurvey(id: string) {
     if (!confirm("Supprimer ce sondage et toutes ses données ?")) return;
-
     await supabase.from("surveys").delete().eq("id", id);
-    loadSurveys();
+    loadDashboard();
+  }
+
+  // Computed stats
+  const filteredSurveys = siteFilter
+    ? surveys.filter((s) => s.site_id === siteFilter)
+    : surveys;
+
+  const activeSurveys = filteredSurveys.filter((s) => s.is_active).length;
+  const inactiveSurveys = filteredSurveys.length - activeSurveys;
+
+  const surveyIds = new Set(filteredSurveys.map((s) => s.id));
+  const filteredResponses = responses.filter((r) => surveyIds.has(r.survey_id));
+  const totalResponses = filteredResponses.length;
+  const uniqueParticipants = new Set(filteredResponses.map((r) => r.user_id)).size;
+  const lastResponse = filteredResponses[0]?.submitted_at;
+
+  const participationRate = totalUsers > 0
+    ? Math.round((uniqueParticipants / totalUsers) * 100)
+    : 0;
+
+  // Per-survey response count
+  const responseCountBySurvey: Record<string, number> = {};
+  filteredResponses.forEach((r) => {
+    responseCountBySurvey[r.survey_id] = (responseCountBySurvey[r.survey_id] || 0) + 1;
+  });
+
+  // Per-site response count (for super_admin)
+  const responseBySite: Record<string, number> = {};
+  if (isSuperAdmin) {
+    filteredResponses.forEach((r) => {
+      const survey = surveys.find((s) => s.id === r.survey_id);
+      const siteName = survey?.sites?.name ?? "Sans site";
+      responseBySite[siteName] = (responseBySite[siteName] || 0) + 1;
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: "#F0F0F0" }} />
+          ))}
+        </div>
+        <div className="h-64 rounded-xl animate-pulse" style={{ background: "#F0F0F0" }} />
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-white">Dashboard Admin</h1>
-        <Link
-          href="/admin/create"
-          className="text-white px-4 py-2 rounded-lg font-medium transition"
-          style={{ background: "#E60077" }}
-        >
-          + Nouveau sondage
-        </Link>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: "var(--sud-black)" }}>Tableau de bord</h1>
+          <p className="text-sm" style={{ color: "var(--sud-muted)" }}>Vue d'ensemble de la plateforme</p>
+        </div>
+        {isSuperAdmin && (
+          <select
+            value={siteFilter}
+            onChange={(e) => setSiteFilter(e.target.value)}
+            className="px-3 py-2 rounded-lg border text-sm"
+            style={{ background: "#FAFAFA", borderColor: "var(--sud-border)", color: "var(--sud-black)" }}
+          >
+            <option value="">Tous les sites</option>
+            {sites.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {loading ? (
-        <p className="text-gray-500">Chargement...</p>
-      ) : surveys.length === 0 ? (
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiCard label="Sondages" value={filteredSurveys.length} sub={`${activeSurveys} actif${activeSurveys > 1 ? "s" : ""} · ${inactiveSurveys} terminé${inactiveSurveys > 1 ? "s" : ""}`} />
+        <KpiCard label="Participants" value={uniqueParticipants} highlight sub={isSuperAdmin ? `${participationRate}% de participation` : undefined} />
+        <KpiCard label="Réponses" value={totalResponses} />
+        <KpiCard
+          label="Dernière réponse"
+          value={lastResponse ? new Date(lastResponse).toLocaleDateString("fr-FR") : "—"}
+          sub={lastResponse ? timeAgo(lastResponse) : undefined}
+        />
+      </div>
+
+      {/* Site breakdown (super_admin) */}
+      {isSuperAdmin && Object.keys(responseBySite).length > 0 && (
         <div
-          className="text-center py-12 rounded-xl border"
+          className="p-5 rounded-xl border shadow-sm"
           style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
         >
-          <p className="text-gray-500 mb-4">Aucun sondage pour le moment.</p>
-          <Link href="/admin/create" style={{ color: "var(--sud-yellow)" }} className="hover:underline">
-            Créer votre premier sondage
-          </Link>
-        </div>
-      ) : (
-        <div
-          className="rounded-xl border overflow-hidden"
-          style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
-        >
-          <table className="w-full">
-            <thead style={{ borderBottom: "1px solid var(--sud-border)" }}>
-              <tr>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Titre</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Site</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Statut</th>
-                <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Date</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-400">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {surveys.map((survey) => (
-                <tr
-                  key={survey.id}
-                  className="transition"
-                  style={{ borderBottom: "1px solid var(--sud-border)" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                >
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="font-medium text-white">{survey.title}</p>
-                      {survey.description && (
-                        <p className="text-sm text-gray-500 truncate max-w-md">
-                          {survey.description}
-                        </p>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-400">
-                    {survey.sites?.name ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className="inline-block px-2 py-1 rounded-full text-xs font-medium"
-                      style={
-                        survey.is_active
-                          ? { background: "rgba(230,0,119,0.15)", color: "#E60077" }
-                          : { background: "rgba(255,255,255,0.05)", color: "#888" }
-                      }
-                    >
-                      {survey.is_active ? "Actif" : "Inactif"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-500">
-                    {new Date(survey.created_at).toLocaleDateString("fr-FR")}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex gap-2 justify-end">
-                      <Link
-                        href={`/admin/results/${survey.id}`}
-                        className="text-sm px-3 py-1 rounded border transition"
-                        style={{
-                          borderColor: "var(--sud-yellow)",
-                          color: "var(--sud-yellow)",
-                        }}
-                      >
-                        Résultats
-                      </Link>
-                      <button
-                        onClick={() => toggleActive(survey)}
-                        className="text-sm px-3 py-1 border rounded transition text-gray-400"
-                        style={{ borderColor: "var(--sud-border)" }}
-                      >
-                        {survey.is_active ? "Désactiver" : "Activer"}
-                      </button>
-                      <button
-                        onClick={() => deleteSurvey(survey.id)}
-                        className="text-sm px-3 py-1 rounded border transition"
-                        style={{ borderColor: "#E60077", color: "#E60077" }}
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+          <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--sud-black)" }}>Répartition par site</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {Object.entries(responseBySite)
+              .sort((a, b) => b[1] - a[1])
+              .map(([siteName, count]) => (
+                <div key={siteName} className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: "#FAFAFA" }}>
+                  <span className="text-sm" style={{ color: "var(--sud-dark)" }}>{siteName}</span>
+                  <span className="text-sm font-bold" style={{ color: "#E60077" }}>{count}</span>
+                </div>
               ))}
-            </tbody>
-          </table>
+          </div>
         </div>
+      )}
+
+      {/* Surveys table */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3" style={{ color: "var(--sud-black)" }}>Sondages</h2>
+
+        {filteredSurveys.length === 0 ? (
+          <div
+            className="text-center py-12 rounded-xl border shadow-sm"
+            style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
+          >
+            <p className="mb-4" style={{ color: "var(--sud-muted)" }}>Aucun sondage pour le moment.</p>
+            <Link href="/admin/create" style={{ color: "#E60077" }} className="hover:underline font-medium">
+              Créer votre premier sondage
+            </Link>
+          </div>
+        ) : (
+          <div
+            className="rounded-xl border overflow-hidden shadow-sm"
+            style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
+          >
+            <table className="w-full">
+              <thead style={{ borderBottom: "1px solid var(--sud-border)", background: "#FAFAFA" }}>
+                <tr>
+                  <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: "var(--sud-muted)" }}>Titre</th>
+                  {isSuperAdmin && <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: "var(--sud-muted)" }}>Site</th>}
+                  <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: "var(--sud-muted)" }}>Statut</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: "var(--sud-muted)" }}>Réponses</th>
+                  <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: "var(--sud-muted)" }}>Date</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium" style={{ color: "var(--sud-muted)" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSurveys.map((survey) => (
+                  <tr
+                    key={survey.id}
+                    className="transition hover:bg-gray-50"
+                    style={{ borderBottom: "1px solid var(--sud-border)" }}
+                  >
+                    <td className="px-4 py-3">
+                      <div>
+                        <p className="font-medium" style={{ color: "var(--sud-black)" }}>{survey.title}</p>
+                        {survey.description && (
+                          <p className="text-sm truncate max-w-xs" style={{ color: "var(--sud-muted)" }}>
+                            {survey.description}
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                    {isSuperAdmin && (
+                      <td className="px-4 py-3 text-sm" style={{ color: "var(--sud-muted)" }}>
+                        {survey.sites?.name ?? "—"}
+                      </td>
+                    )}
+                    <td className="px-4 py-3">
+                      <span
+                        className="inline-block px-2 py-1 rounded-full text-xs font-medium"
+                        style={
+                          survey.is_active
+                            ? { background: "var(--sud-pink-light)", color: "#E60077" }
+                            : { background: "#F5F5F5", color: "#999" }
+                        }
+                      >
+                        {survey.is_active ? "Actif" : "Inactif"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="font-bold" style={{ color: "#E60077" }}>
+                        {responseCountBySurvey[survey.id] || 0}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm" style={{ color: "var(--sud-muted)" }}>
+                      {new Date(survey.created_at).toLocaleDateString("fr-FR")}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <Link
+                          href={`/admin/results/${survey.id}`}
+                          className="text-sm px-3 py-1 rounded border transition font-medium"
+                          style={{ borderColor: "#E60077", color: "#E60077" }}
+                        >
+                          Résultats
+                        </Link>
+                        <button
+                          onClick={() => toggleActive(survey)}
+                          className="text-sm px-3 py-1 border rounded transition"
+                          style={{ borderColor: "var(--sud-border)", color: "var(--sud-muted)" }}
+                        >
+                          {survey.is_active ? "Désactiver" : "Activer"}
+                        </button>
+                        <button
+                          onClick={() => deleteSurvey(survey.id)}
+                          className="text-sm px-3 py-1 rounded border transition"
+                          style={{ borderColor: "#E60077", color: "#E60077" }}
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- Sub-components ---
+
+function KpiCard({ label, value, sub, highlight }: { label: string; value: string | number; sub?: string; highlight?: boolean }) {
+  return (
+    <div
+      className="p-4 rounded-xl border shadow-sm"
+      style={{
+        background: highlight ? "var(--sud-pink-light)" : "var(--sud-card)",
+        borderColor: "var(--sud-border)",
+      }}
+    >
+      <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: highlight ? "#E60077" : "var(--sud-muted)" }}>
+        {label}
+      </p>
+      <p className="text-2xl font-bold" style={{ color: highlight ? "#E60077" : "var(--sud-black)" }}>
+        {value}
+      </p>
+      {sub && (
+        <p className="text-xs mt-1" style={{ color: "var(--sud-muted)" }}>{sub}</p>
       )}
     </div>
   );
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "À l'instant";
+  if (minutes < 60) return `Il y a ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Il y a ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Il y a ${days}j`;
+  return `Il y a ${Math.floor(days / 7)} sem.`;
 }

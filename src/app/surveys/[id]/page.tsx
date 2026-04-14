@@ -141,7 +141,7 @@ export default function SurveyResponsePage() {
   }
 
   if (loading) {
-    return <p className="text-gray-500">Chargement du sondage...</p>;
+    return <p style={{ color: "var(--sud-muted)" }}>Chargement du sondage...</p>;
   }
 
   if (!survey) {
@@ -152,11 +152,11 @@ export default function SurveyResponsePage() {
     return (
       <div className="max-w-2xl mx-auto text-center py-12">
         <div
-          className="p-8 rounded-xl border"
+          className="p-8 rounded-xl border shadow-sm"
           style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
         >
-          <h1 className="text-2xl font-bold text-white mb-4">{survey.title}</h1>
-          <p className="font-medium" style={{ color: "var(--sud-yellow)" }}>
+          <h1 className="text-2xl font-bold mb-4" style={{ color: "var(--sud-black)" }}>{survey.title}</h1>
+          <p className="font-medium" style={{ color: "#E60077" }}>
             Vous avez déjà répondu à ce sondage.
           </p>
           <button
@@ -175,13 +175,13 @@ export default function SurveyResponsePage() {
     return (
       <div className="max-w-2xl mx-auto text-center py-12">
         <div
-          className="p-8 rounded-xl border"
+          className="p-8 rounded-xl border shadow-sm"
           style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
         >
-          <h1 className="text-2xl font-bold mb-4" style={{ color: "var(--sud-yellow)" }}>
+          <h1 className="text-2xl font-bold mb-4" style={{ color: "#E60077" }}>
             Merci !
           </h1>
-          <p className="text-gray-400">Vos réponses ont été enregistrées avec succès.</p>
+          <p style={{ color: "var(--sud-muted)" }}>Vos réponses ont été enregistrées avec succès.</p>
           <button
             onClick={() => router.push("/surveys")}
             className="mt-4 hover:underline"
@@ -195,19 +195,20 @@ export default function SurveyResponsePage() {
   }
 
   const inputStyle = {
-    background: "var(--sud-black)",
+    background: "#FAFAFA",
     borderColor: "var(--sud-border)",
+    color: "var(--sud-black)",
   };
 
   return (
     <div className="max-w-2xl mx-auto">
       <div
-        className="p-6 rounded-xl mb-6 border"
+        className="p-6 rounded-xl mb-6 border shadow-sm"
         style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
       >
-        <h1 className="text-2xl font-bold text-white mb-2">{survey.title}</h1>
+        <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--sud-black)" }}>{survey.title}</h1>
         {survey.description && (
-          <p className="text-gray-500">{survey.description}</p>
+          <p style={{ color: "var(--sud-muted)" }}>{survey.description}</p>
         )}
       </div>
 
@@ -215,17 +216,17 @@ export default function SurveyResponsePage() {
         {questions.map((q, index) => (
           <div
             key={q.id}
-            className="p-5 rounded-xl border"
+            className="p-5 rounded-xl border shadow-sm"
             style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
           >
-            <h3 className="font-medium text-white mb-3">
+            <h3 className="font-medium mb-3" style={{ color: "var(--sud-black)" }}>
               {index + 1}. {q.title}
             </h3>
 
             {q.type === "mcq_single" && q.options && (
               <div className="space-y-2">
                 {q.options.map((option) => (
-                  <label key={option} className="flex items-center gap-3 cursor-pointer text-gray-300 hover:text-white transition">
+                  <label key={option} className="flex items-center gap-3 cursor-pointer transition" style={{ color: "var(--sud-dark)" }}>
                     <input
                       type="radio"
                       name={q.id}
@@ -243,7 +244,7 @@ export default function SurveyResponsePage() {
             {q.type === "mcq_multiple" && q.options && (
               <div className="space-y-2">
                 {q.options.map((option) => (
-                  <label key={option} className="flex items-center gap-3 cursor-pointer text-gray-300 hover:text-white transition">
+                  <label key={option} className="flex items-center gap-3 cursor-pointer transition" style={{ color: "var(--sud-dark)" }}>
                     <input
                       type="checkbox"
                       checked={(answers[q.id] as string[] || []).includes(option)}
@@ -281,7 +282,7 @@ export default function SurveyResponsePage() {
                 onChange={(e) => updateAnswer(q.id, e.target.value)}
                 rows={3}
                 placeholder="Votre réponse..."
-                className="w-full px-3 py-2.5 rounded-lg text-white focus:outline-none focus:ring-2 border"
+                className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
                 style={inputStyle}
               />
             )}
@@ -289,7 +290,7 @@ export default function SurveyResponsePage() {
         ))}
 
         {error && (
-          <p className="text-sm p-3 rounded-lg" style={{ background: "rgba(230,0,119,0.1)", color: "#E60077" }}>
+          <p className="text-sm p-3 rounded-lg" style={{ background: "var(--sud-pink-light)", color: "#E60077" }}>
             {error}
           </p>
         )}

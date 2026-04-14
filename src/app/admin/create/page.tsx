@@ -98,25 +98,26 @@ export default function CreateSurveyPage() {
   }
 
   const inputStyle = {
-    background: "var(--sud-black)",
+    background: "#FAFAFA",
     borderColor: "var(--sud-border)",
+    color: "var(--sud-black)",
   };
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-white mb-6">
+      <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--sud-black)" }}>
         Créer un sondage
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div
-          className="p-6 rounded-xl border"
+          className="p-6 rounded-xl border shadow-sm"
           style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
         >
           <div className="space-y-4">
             {isSuperAdmin && (
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--sud-muted)" }}>
                   Site cible
                 </label>
                 <SiteSelect value={siteId} onChange={setSiteId} />
@@ -124,7 +125,7 @@ export default function CreateSurveyPage() {
             )}
 
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-400 mb-1">
+              <label htmlFor="title" className="block text-sm font-medium mb-1" style={{ color: "var(--sud-muted)" }}>
                 Titre du sondage
               </label>
               <input
@@ -134,12 +135,12 @@ export default function CreateSurveyPage() {
                 onChange={(e) => setTitle(e.target.value)}
                 required
                 placeholder="Ex: Enquête satisfaction 2026"
-                className="w-full px-3 py-2.5 rounded-lg text-white focus:outline-none focus:ring-2 border"
+                className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
                 style={inputStyle}
               />
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-400 mb-1">
+              <label htmlFor="description" className="block text-sm font-medium mb-1" style={{ color: "var(--sud-muted)" }}>
                 Description (optionnelle)
               </label>
               <textarea
@@ -148,7 +149,7 @@ export default function CreateSurveyPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
                 placeholder="Décrivez l'objectif du sondage..."
-                className="w-full px-3 py-2.5 rounded-lg text-white focus:outline-none focus:ring-2 border"
+                className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
                 style={inputStyle}
               />
             </div>
@@ -156,7 +157,7 @@ export default function CreateSurveyPage() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-300">Questions</h2>
+          <h2 className="text-lg font-semibold" style={{ color: "var(--sud-dark)" }}>Questions</h2>
 
           {questions.map((question, index) => (
             <QuestionForm
@@ -171,15 +172,15 @@ export default function CreateSurveyPage() {
           <button
             type="button"
             onClick={addQuestion}
-            className="w-full py-3 border-2 border-dashed rounded-xl text-gray-500 transition"
-            style={{ borderColor: "var(--sud-border)" }}
+            className="w-full py-3 border-2 border-dashed rounded-xl transition"
+            style={{ borderColor: "var(--sud-border)", color: "var(--sud-muted)" }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = "#E60077";
               e.currentTarget.style.color = "#E60077";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = "var(--sud-border)";
-              e.currentTarget.style.color = "#6b7280";
+              e.currentTarget.style.color = "var(--sud-muted)";
             }}
           >
             + Ajouter une question
@@ -187,7 +188,7 @@ export default function CreateSurveyPage() {
         </div>
 
         {error && (
-          <p className="text-sm p-3 rounded-lg" style={{ background: "rgba(230,0,119,0.1)", color: "#E60077" }}>
+          <p className="text-sm p-3 rounded-lg" style={{ background: "var(--sud-pink-light)", color: "#E60077" }}>
             {error}
           </p>
         )}
@@ -204,8 +205,8 @@ export default function CreateSurveyPage() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="px-6 py-3 border rounded-lg text-gray-400 transition"
-            style={{ borderColor: "var(--sud-border)" }}
+            className="px-6 py-3 border rounded-lg transition"
+            style={{ borderColor: "var(--sud-border)", color: "var(--sud-muted)" }}
           >
             Annuler
           </button>

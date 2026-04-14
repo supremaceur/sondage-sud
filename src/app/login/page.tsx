@@ -33,19 +33,25 @@ export default function LoginPage() {
     router.refresh();
   }
 
+  const inputStyle = {
+    background: "#FAFAFA",
+    borderColor: "var(--sud-border)",
+    color: "var(--sud-black)",
+  };
+
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div
-        className="p-8 rounded-xl w-full max-w-md border"
+        className="p-8 rounded-xl w-full max-w-md border shadow-sm"
         style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
       >
-        <h1 className="text-2xl font-bold text-center text-white mb-6">
+        <h1 className="text-2xl font-bold text-center mb-6" style={{ color: "var(--sud-black)" }}>
           Connexion
         </h1>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-1">
+            <label htmlFor="email" className="block text-sm font-medium mb-1" style={{ color: "var(--sud-muted)" }}>
               Email
             </label>
             <input
@@ -54,18 +60,13 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-3 py-2.5 rounded-lg text-white focus:outline-none focus:ring-2 border"
-              style={{
-                background: "var(--sud-black)",
-                borderColor: "var(--sud-border)",
-                // @ts-expect-error CSS custom property
-                "--tw-ring-color": "#E60077",
-              }}
+              className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
+              style={inputStyle}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-1">
+            <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: "var(--sud-muted)" }}>
               Mot de passe
             </label>
             <input
@@ -74,13 +75,8 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-3 py-2.5 rounded-lg text-white focus:outline-none focus:ring-2 border"
-              style={{
-                background: "var(--sud-black)",
-                borderColor: "var(--sud-border)",
-                // @ts-expect-error CSS custom property
-                "--tw-ring-color": "#E60077",
-              }}
+              className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
+              style={inputStyle}
             />
           </div>
 
@@ -98,9 +94,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className="mt-4 text-center text-sm" style={{ color: "var(--sud-muted)" }}>
           Pas encore de compte ?{" "}
-          <Link href="/signup" style={{ color: "var(--sud-yellow)" }} className="hover:underline">
+          <Link href="/signup" style={{ color: "#E60077" }} className="hover:underline font-medium">
             Créer un compte
           </Link>
         </p>

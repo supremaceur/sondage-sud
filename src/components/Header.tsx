@@ -17,13 +17,13 @@ export default function Header() {
 
   return (
     <header
-      className="border-b backdrop-blur-sm sticky top-0 z-50"
-      style={{ background: "rgba(17,17,17,0.95)", borderColor: "var(--sud-border)" }}
+      className="border-b sticky top-0 z-50"
+      style={{ background: "var(--sud-header)", borderColor: "var(--sud-header)" }}
     >
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/" className="text-xl font-bold tracking-tight flex items-center gap-2">
-          <span style={{ color: "#E60077" }}>SUD</span>
-          <span className="text-white">Sondage</span>
+          <span style={{ color: "var(--sud-yellow)" }}>SUD P2ST</span>
+          {isAdmin && <span className="text-gray-400 text-sm font-normal">| Admin</span>}
         </Link>
 
         <nav className="flex items-center gap-6">
@@ -57,29 +57,17 @@ export default function Header() {
                   )}
 
                   <div className="flex flex-col items-end text-sm">
-                    <span style={{ color: "var(--sud-yellow)" }}>
+                    <span className="text-white font-medium">
                       {profile?.full_name || user.email}
                     </span>
                     {site && (
-                      <span className="text-xs text-gray-500">{site.name}</span>
+                      <span className="text-xs text-gray-400">{site.name}</span>
                     )}
                   </div>
 
                   <button
                     onClick={handleSignOut}
-                    className="px-3 py-1.5 rounded text-sm font-medium transition border"
-                    style={{
-                      borderColor: "var(--sud-border)",
-                      color: "#ccc",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = "#E60077";
-                      e.currentTarget.style.color = "#E60077";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "var(--sud-border)";
-                      e.currentTarget.style.color = "#ccc";
-                    }}
+                    className="px-3 py-1.5 rounded text-sm font-medium transition text-gray-300 hover:text-white"
                   >
                     Déconnexion
                   </button>

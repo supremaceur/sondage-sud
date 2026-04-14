@@ -44,17 +44,18 @@ export default function QuestionForm({ index, question, onChange, onRemove }: Pr
   }
 
   const inputStyle = {
-    background: "var(--sud-black)",
+    background: "#FAFAFA",
     borderColor: "var(--sud-border)",
+    color: "var(--sud-black)",
   };
 
   return (
     <div
-      className="rounded-xl p-5 border"
+      className="rounded-xl p-5 border shadow-sm"
       style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-300">Question {index + 1}</h3>
+        <h3 className="font-semibold" style={{ color: "var(--sud-dark)" }}>Question {index + 1}</h3>
         <button
           type="button"
           onClick={() => onRemove(index)}
@@ -67,7 +68,7 @@ export default function QuestionForm({ index, question, onChange, onRemove }: Pr
 
       <div className="space-y-3">
         <div>
-          <label className="block text-sm font-medium text-gray-400 mb-1">Type</label>
+          <label className="block text-sm font-medium mb-1" style={{ color: "var(--sud-muted)" }}>Type</label>
           <select
             value={question.type}
             onChange={(e) =>
@@ -78,7 +79,7 @@ export default function QuestionForm({ index, question, onChange, onRemove }: Pr
                   : [],
               })
             }
-            className="w-full px-3 py-2.5 rounded-lg text-white focus:outline-none focus:ring-2 border"
+            className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
             style={inputStyle}
           >
             {Object.entries(questionTypeLabels).map(([value, label]) => (
@@ -88,21 +89,21 @@ export default function QuestionForm({ index, question, onChange, onRemove }: Pr
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-400 mb-1">Intitulé</label>
+          <label className="block text-sm font-medium mb-1" style={{ color: "var(--sud-muted)" }}>Intitulé</label>
           <input
             type="text"
             value={question.title}
             onChange={(e) => updateField({ title: e.target.value })}
             placeholder="Ex: Quel est votre avis sur..."
             required
-            className="w-full px-3 py-2.5 rounded-lg text-white focus:outline-none focus:ring-2 border"
+            className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
             style={inputStyle}
           />
         </div>
 
         {hasOptions && (
           <div>
-            <label className="block text-sm font-medium text-gray-400 mb-1">Options</label>
+            <label className="block text-sm font-medium mb-1" style={{ color: "var(--sud-muted)" }}>Options</label>
             <div className="space-y-2">
               {question.options.map((option, optIndex) => (
                 <div key={optIndex} className="flex gap-2">
@@ -112,7 +113,7 @@ export default function QuestionForm({ index, question, onChange, onRemove }: Pr
                     onChange={(e) => updateOption(optIndex, e.target.value)}
                     placeholder={`Option ${optIndex + 1}`}
                     required
-                    className="flex-1 px-3 py-2.5 rounded-lg text-white focus:outline-none focus:ring-2 border"
+                    className="flex-1 px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
                     style={inputStyle}
                   />
                   {question.options.length > 2 && (
@@ -131,8 +132,8 @@ export default function QuestionForm({ index, question, onChange, onRemove }: Pr
             <button
               type="button"
               onClick={addOption}
-              className="mt-2 text-sm transition"
-              style={{ color: "var(--sud-yellow)" }}
+              className="mt-2 text-sm transition font-medium"
+              style={{ color: "#E60077" }}
             >
               + Ajouter une option
             </button>
