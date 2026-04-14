@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+
+const MAGIC_LINK_EXPIRY = 300; // 5 minutes en secondes
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,8 +15,78 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [magicLinkMode, setMagicLinkMode] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [countdown, setCountdown] = useState(MAGIC_LINK_EXPIRY);
+  const [canResend, setCanResend] = useState(false);
   const router = useRouter();
   const supabase = createClient();
+
+  // Gérer les erreurs provenant du callback (ex: lien expiré)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get("error");
+    if (errorParam === "magic_link_expired") {
+      setError("Le lien magique a expiré. Veuillez en demander un nouveau.");
+      setMagicLinkMode(true);
+    } else if (errorParam === "auth") {
+      setError("Erreur d'authentification. Veuillez réessayer.");
+    }
+  }, []);
+
+  // Timer de countdown après envoi du magic link
+  useEffect(() => {
+    if (!magicLinkSent) return;
+
+    setCountdown(MAGIC_LINK_EXPIRY);
+    setCanResend(false);
+
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setCanResend(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [magicLinkSent]);
+
+  function formatTime(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  const sendMagicLink = useCallback(async (targetEmail: string) => {
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Erreur lors de l'envoi.");
+        setLoading(false);
+        return false;
+      }
+
+      setMagicLinkSent(true);
+      setLoading(false);
+      return true;
+    } catch {
+      setError("Erreur de connexion au serveur.");
+      setLoading(false);
+      return false;
+    }
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -22,21 +94,7 @@ export default function LoginPage() {
     setLoading(true);
 
     if (magicLinkMode) {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-        return;
-      }
-
-      setMagicLinkSent(true);
-      setLoading(false);
+      await sendMagicLink(email);
       return;
     }
 
@@ -53,6 +111,10 @@ export default function LoginPage() {
 
     router.push("/");
     router.refresh();
+  }
+
+  async function handleResend() {
+    await sendMagicLink(email);
   }
 
   const inputStyle = {
@@ -73,20 +135,61 @@ export default function LoginPage() {
 
         {magicLinkSent ? (
           <div className="text-center space-y-4">
+            {/* Icône email */}
             <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center" style={{ background: "var(--sud-pink-light)" }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#E60077" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
             </div>
+
             <h2 className="text-lg font-semibold" style={{ color: "var(--sud-black)" }}>
               Vérifiez votre boîte mail
             </h2>
+
             <p className="text-sm" style={{ color: "var(--sud-muted)" }}>
               Un lien de connexion a été envoyé à <strong style={{ color: "var(--sud-black)" }}>{email}</strong>.
-              <br />Cliquez sur le lien dans l'email pour vous connecter.
+              <br />Cliquez sur le lien dans l&apos;email pour vous connecter.
             </p>
+
+            {/* Timer d'expiration */}
+            <div
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm"
+              style={{
+                background: countdown > 0 ? "var(--sud-yellow-soft)" : "var(--sud-pink-light)",
+                color: countdown > 0 ? "var(--sud-dark)" : "#E60077",
+              }}
+            >
+              {countdown > 0 ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>Le lien expire dans <strong>{formatTime(countdown)}</strong></span>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  <span>Le lien a expiré</span>
+                </>
+              )}
+            </div>
+
+            {/* Bouton renvoyer */}
+            {canResend && (
+              <button
+                onClick={handleResend}
+                disabled={loading}
+                className="w-full text-white py-2.5 px-4 rounded-lg font-medium transition disabled:opacity-50"
+                style={{ background: "#E60077" }}
+              >
+                {loading ? "Envoi..." : "Renvoyer un lien magique"}
+              </button>
+            )}
+
+            {error && (
+              <p className="text-sm" style={{ color: "#E60077" }}>{error}</p>
+            )}
+
             <button
-              onClick={() => { setMagicLinkSent(false); setMagicLinkMode(false); }}
+              onClick={() => { setMagicLinkSent(false); setMagicLinkMode(false); setError(null); }}
               className="text-sm hover:underline"
-              style={{ color: "#E60077" }}
+              style={{ color: "var(--sud-muted)" }}
             >
               Retour à la connexion
             </button>
@@ -97,7 +200,7 @@ export default function LoginPage() {
             <div className="flex mb-6 rounded-lg overflow-hidden border" style={{ borderColor: "var(--sud-border)" }}>
               <button
                 type="button"
-                onClick={() => setMagicLinkMode(false)}
+                onClick={() => { setMagicLinkMode(false); setError(null); }}
                 className="flex-1 py-2.5 text-sm font-medium transition"
                 style={{
                   background: !magicLinkMode ? "var(--sud-pink-light)" : "#FAFAFA",
@@ -108,7 +211,7 @@ export default function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setMagicLinkMode(true)}
+                onClick={() => { setMagicLinkMode(true); setError(null); }}
                 className="flex-1 py-2.5 text-sm font-medium transition"
                 style={{
                   background: magicLinkMode ? "var(--sud-pink-light)" : "#FAFAFA",
@@ -176,13 +279,16 @@ export default function LoginPage() {
               )}
 
               {magicLinkMode && (
-                <p className="text-xs" style={{ color: "var(--sud-muted)" }}>
-                  Un lien de connexion sera envoyé à votre adresse email. Aucun mot de passe requis.
-                </p>
+                <div className="rounded-lg p-3 text-xs space-y-1" style={{ background: "var(--sud-yellow-soft)", color: "var(--sud-dark)" }}>
+                  <p>Un lien de connexion sera envoyé à votre adresse email.</p>
+                  <p>Aucun mot de passe requis. <strong>Le lien expire dans 5 minutes.</strong></p>
+                </div>
               )}
 
               {error && (
-                <p className="text-sm" style={{ color: "#E60077" }}>{error}</p>
+                <p className="text-sm p-3 rounded-lg" style={{ background: "var(--sud-pink-light)", color: "#E60077" }}>
+                  {error}
+                </p>
               )}
 
               <button
