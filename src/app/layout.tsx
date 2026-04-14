@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import Header from "@/components/Header";
 import AuthProvider from "@/components/AuthProvider";
 import "./globals.css";
@@ -35,6 +36,13 @@ export default function RootLayout({
           <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
             {children}
           </main>
+          <footer className="border-t py-4 text-center text-xs" style={{ borderColor: "var(--sud-border)", color: "var(--sud-muted)" }}>
+            <Link href="/mentions-legales" className="hover:underline" style={{ color: "var(--sud-muted)" }}>
+              Mentions légales
+            </Link>
+            <span className="mx-2">·</span>
+            <span>© {new Date().getFullYear()} SUD P2ST</span>
+          </footer>
         </AuthProvider>
       </body>
     </html>
