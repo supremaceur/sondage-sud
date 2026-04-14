@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [surveys, setSurveys] = useState<SurveyWithSite[]>([]);
   const [responses, setResponses] = useState<ResponseRow[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
+  const [surveySitesMap, setSurveySitesMap] = useState<Record<string, string[]>>({});
   const [totalUsers, setTotalUsers] = useState(0);
   const [loading, setLoading] = useState(true);
   const [siteFilter, setSiteFilter] = useState("");
@@ -37,13 +38,22 @@ export default function AdminPage() {
   }, []);
 
   async function loadDashboard() {
-    const [surveysResult, responsesResult] = await Promise.all([
+    const [surveysResult, responsesResult, surveySitesResult] = await Promise.all([
       supabase.from("surveys").select("*, sites(name)").order("created_at", { ascending: false }),
       supabase.from("responses").select("id, survey_id, user_id, submitted_at").order("submitted_at", { ascending: false }),
+      supabase.from("survey_sites").select("survey_id, sites(name)"),
     ]);
 
     setSurveys((surveysResult.data as SurveyWithSite[]) ?? []);
     setResponses((responsesResult.data as ResponseRow[]) ?? []);
+
+    // Construire la map survey_id → noms de sites
+    const ssMap: Record<string, string[]> = {};
+    ((surveySitesResult.data as unknown as { survey_id: string; sites: { name: string } | null }[]) ?? []).forEach((row) => {
+      if (!ssMap[row.survey_id]) ssMap[row.survey_id] = [];
+      if (row.sites?.name) ssMap[row.survey_id].push(row.sites.name);
+    });
+    setSurveySitesMap(ssMap);
 
     if (isSuperAdmin) {
       const [sitesResult, usersResult] = await Promise.all([
@@ -273,8 +283,11 @@ export default function AdminPage() {
                       </div>
                     </td>
                     {isSuperAdmin && (
-                      <td className="px-4 py-3 text-sm" style={{ color: "var(--sud-muted)" }}>
-                        {survey.sites?.name ?? "—"}
+                      <td className="px-4 py-3 text-sm">
+                        <SitesBadges
+                          singleSiteName={survey.sites?.name}
+                          multiSiteNames={surveySitesMap[survey.id]}
+                        />
                       </td>
                     )}
                     <td className="px-4 py-3">
@@ -368,6 +381,69 @@ function KpiCard({ label, value, sub, highlight }: { label: string; value: strin
         <p className="text-xs mt-1" style={{ color: "var(--sud-muted)" }}>{sub}</p>
       )}
     </div>
+  );
+}
+
+function SitesBadges({ singleSiteName, multiSiteNames }: { singleSiteName?: string; multiSiteNames?: string[] }) {
+  // Multi-sites from survey_sites table
+  if (multiSiteNames && multiSiteNames.length > 0) {
+    if (multiSiteNames.length <= 3) {
+      return (
+        <div className="flex flex-wrap gap-1">
+          {multiSiteNames.map((name) => (
+            <span
+              key={name}
+              className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ background: "var(--sud-yellow-soft)", color: "var(--sud-dark)" }}
+            >
+              {name}
+            </span>
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-wrap gap-1 items-center">
+        {multiSiteNames.slice(0, 2).map((name) => (
+          <span
+            key={name}
+            className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+            style={{ background: "var(--sud-yellow-soft)", color: "var(--sud-dark)" }}
+          >
+            {name}
+          </span>
+        ))}
+        <span
+          className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+          style={{ background: "#F0F0F0", color: "var(--sud-muted)" }}
+          title={multiSiteNames.join(", ")}
+        >
+          +{multiSiteNames.length - 2}
+        </span>
+      </div>
+    );
+  }
+
+  // Single site from direct site_id relation
+  if (singleSiteName) {
+    return (
+      <span
+        className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+        style={{ background: "var(--sud-yellow-soft)", color: "var(--sud-dark)" }}
+      >
+        {singleSiteName}
+      </span>
+    );
+  }
+
+  // No sites = all sites
+  return (
+    <span
+      className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{ background: "var(--sud-pink-light)", color: "#E60077" }}
+    >
+      Tous les sites
+    </span>
   );
 }
 
