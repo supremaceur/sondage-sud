@@ -96,6 +96,12 @@ export default function LoginPage() {
             </div>
           </div>
 
+          <div className="text-right">
+            <Link href="/forgot-password" className="text-xs hover:underline" style={{ color: "#E60077" }}>
+              Mot de passe oublié ?
+            </Link>
+          </div>
+
           {error && (
             <p className="text-sm" style={{ color: "#E60077" }}>{error}</p>
           )}
