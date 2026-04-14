@@ -84,9 +84,9 @@ export default function ResultsPage() {
     setCollapsed((prev) => ({ ...prev, [qId]: !prev[qId] }));
   }
 
-  function handleExport() {
+  async function handleExport() {
     if (!survey) return;
-    exportToExcel({
+    await exportToExcel({
       survey,
       questions,
       answers,
