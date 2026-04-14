@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/AuthProvider";
 import MultiSiteSelect from "@/components/MultiSiteSelect";
 import QuestionForm, { type QuestionDraft } from "@/components/QuestionForm";
+import type { Survey, Question } from "@/types";
 
-export default function CreateSurveyPage() {
+export default function EditSurveyPage() {
+  const { id } = useParams<{ id: string }>();
   const { user, profile, role } = useAuth();
   const isSuperAdmin = role === "super_admin";
   const router = useRouter();
@@ -15,15 +17,67 @@ export default function CreateSurveyPage() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [questions, setQuestions] = useState<QuestionDraft[]>([
-    { type: "mcq_single", title: "", options: ["", ""] },
-  ]);
-  const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>(
-    profile?.site_id ? [profile.site_id] : []
-  );
+  const [isActive, setIsActive] = useState(true);
+  const [questions, setQuestions] = useState<QuestionDraft[]>([]);
+  const [existingQuestionIds, setExistingQuestionIds] = useState<string[]>([]);
+  const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([]);
   const [allSites, setAllSites] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      // Charger le sondage
+      const { data: survey } = await supabase
+        .from("surveys")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (!survey) {
+        setLoading(false);
+        return;
+      }
+
+      setTitle(survey.title);
+      setDescription(survey.description || "");
+      setIsActive(survey.is_active);
+
+      // Charger les questions
+      const { data: questionsData } = await supabase
+        .from("questions")
+        .select("*")
+        .eq("survey_id", id)
+        .order("position");
+
+      const qs = (questionsData as Question[]) ?? [];
+      setExistingQuestionIds(qs.map((q) => q.id));
+      setQuestions(
+        qs.map((q) => ({
+          type: q.type,
+          title: q.title,
+          options: q.options ?? ["", ""],
+        }))
+      );
+
+      // Charger les sites associés
+      const { data: surveySites } = await supabase
+        .from("survey_sites")
+        .select("site_id")
+        .eq("survey_id", id);
+
+      if (surveySites && surveySites.length > 0) {
+        setSelectedSiteIds(surveySites.map((s) => s.site_id));
+        setAllSites(false);
+      } else {
+        setAllSites(true);
+      }
+
+      setLoading(false);
+    }
+    load();
+  }, [id]);
 
   function addQuestion() {
     setQuestions([...questions, { type: "mcq_single", title: "", options: ["", ""] }]);
@@ -38,6 +92,7 @@ export default function CreateSurveyPage() {
   function removeQuestion(index: number) {
     if (questions.length <= 1) return;
     setQuestions(questions.filter((_, i) => i !== index));
+    setExistingQuestionIds(existingQuestionIds.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -45,67 +100,56 @@ export default function CreateSurveyPage() {
     if (!user) return;
 
     setError(null);
-    setLoading(true);
-
-    if (!allSites && selectedSiteIds.length === 0 && isSuperAdmin) {
-      setError("Veuillez sélectionner au moins un site ou 'Tous les sites'.");
-      setLoading(false);
-      return;
-    }
+    setSaving(true);
 
     for (const q of questions) {
       if (!q.title.trim()) {
         setError("Toutes les questions doivent avoir un intitulé.");
-        setLoading(false);
+        setSaving(false);
         return;
       }
       if ((q.type === "mcq_single" || q.type === "mcq_multiple") &&
           q.options.some((o) => !o.trim())) {
         setError("Toutes les options QCM doivent être remplies.");
-        setLoading(false);
+        setSaving(false);
         return;
       }
     }
 
-    // Créer le sondage (site_id = null pour multi/all, sinon le premier site sélectionné pour backward compat)
+    // Mettre à jour le sondage
     const siteId = isSuperAdmin
       ? (allSites ? null : (selectedSiteIds.length === 1 ? selectedSiteIds[0] : null))
       : profile?.site_id;
 
-    const { data: survey, error: surveyError } = await supabase
+    const { error: surveyError } = await supabase
       .from("surveys")
-      .insert({
+      .update({
         title,
         description: description || null,
-        created_by: user.id,
+        is_active: isActive,
         site_id: siteId,
       })
-      .select("id")
-      .single();
+      .eq("id", id);
 
-    if (surveyError || !survey) {
-      setError(surveyError?.message ?? "Erreur lors de la création du sondage.");
-      setLoading(false);
+    if (surveyError) {
+      setError(surveyError.message);
+      setSaving(false);
       return;
     }
 
-    // Insérer les associations site si pas "tous les sites"
-    if (!allSites && isSuperAdmin && selectedSiteIds.length > 0) {
-      const sitesToInsert = selectedSiteIds.map((sid) => ({
-        survey_id: survey.id,
-        site_id: sid,
-      }));
-      await supabase.from("survey_sites").insert(sitesToInsert);
-    } else if (!isSuperAdmin && profile?.site_id) {
-      await supabase.from("survey_sites").insert({
-        survey_id: survey.id,
-        site_id: profile.site_id,
-      });
+    // Mettre à jour les sites
+    await supabase.from("survey_sites").delete().eq("survey_id", id);
+    if (!allSites && selectedSiteIds.length > 0) {
+      await supabase.from("survey_sites").insert(
+        selectedSiteIds.map((sid) => ({ survey_id: id, site_id: sid }))
+      );
     }
 
-    // Insérer les questions
+    // Supprimer les anciennes questions et recréer
+    await supabase.from("questions").delete().eq("survey_id", id);
+
     const questionsToInsert = questions.map((q, i) => ({
-      survey_id: survey.id,
+      survey_id: id,
       type: q.type,
       title: q.title,
       options: (q.type === "mcq_single" || q.type === "mcq_multiple") ? q.options : null,
@@ -118,7 +162,7 @@ export default function CreateSurveyPage() {
 
     if (questionsError) {
       setError(questionsError.message);
-      setLoading(false);
+      setSaving(false);
       return;
     }
 
@@ -132,10 +176,19 @@ export default function CreateSurveyPage() {
     color: "var(--sud-black)",
   };
 
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-4">
+        <div className="h-10 w-48 rounded animate-pulse" style={{ background: "#F0F0F0" }} />
+        <div className="h-64 rounded-xl animate-pulse" style={{ background: "#F0F0F0" }} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--sud-black)" }}>
-        Créer un sondage
+        Modifier le sondage
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -154,7 +207,6 @@ export default function CreateSurveyPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                placeholder="Ex: Enquête satisfaction 2026"
                 className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
                 style={inputStyle}
               />
@@ -168,10 +220,42 @@ export default function CreateSurveyPage() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                placeholder="Décrivez l'objectif du sondage..."
                 className="w-full px-3 py-2.5 rounded-lg focus:outline-none focus:ring-2 border"
                 style={inputStyle}
               />
+            </div>
+
+            {/* Statut */}
+            <div>
+              <label className="block text-sm font-medium mb-1" style={{ color: "var(--sud-muted)" }}>
+                Statut
+              </label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsActive(true)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border transition"
+                  style={{
+                    background: isActive ? "var(--sud-pink-light)" : "#FAFAFA",
+                    borderColor: isActive ? "#E60077" : "var(--sud-border)",
+                    color: isActive ? "#E60077" : "var(--sud-muted)",
+                  }}
+                >
+                  Actif
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsActive(false)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border transition"
+                  style={{
+                    background: !isActive ? "#F5F5F5" : "#FAFAFA",
+                    borderColor: !isActive ? "var(--sud-dark)" : "var(--sud-border)",
+                    color: !isActive ? "var(--sud-dark)" : "var(--sud-muted)",
+                  }}
+                >
+                  Inactif
+                </button>
+              </div>
             </div>
 
             {/* Sites */}
@@ -237,11 +321,11 @@ export default function CreateSurveyPage() {
         <div className="flex gap-3">
           <button
             type="submit"
-            disabled={loading}
+            disabled={saving}
             className="flex-1 text-white py-3 rounded-lg font-medium transition disabled:opacity-50"
             style={{ background: "#E60077" }}
           >
-            {loading ? "Création en cours..." : "Créer le sondage"}
+            {saving ? "Enregistrement..." : "Enregistrer les modifications"}
           </button>
           <button
             type="button"

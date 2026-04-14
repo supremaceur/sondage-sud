@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Survey, Question, Answer, Site } from "@/types";
 import { useAuth } from "@/components/AuthProvider";
@@ -18,8 +19,9 @@ interface ResponseRow {
 }
 
 export default function AdminPage() {
-  const { role, site: userSite } = useAuth();
+  const { role, site: userSite, user } = useAuth();
   const supabase = createClient();
+  const router = useRouter();
 
   const [surveys, setSurveys] = useState<SurveyWithSite[]>([]);
   const [responses, setResponses] = useState<ResponseRow[]>([]);
@@ -63,6 +65,61 @@ export default function AdminPage() {
   async function deleteSurvey(id: string) {
     if (!confirm("Supprimer ce sondage et toutes ses données ?")) return;
     await supabase.from("surveys").delete().eq("id", id);
+    loadDashboard();
+  }
+
+  async function duplicateSurvey(survey: SurveyWithSite) {
+    if (!user) return;
+
+    // Dupliquer le sondage
+    const { data: newSurvey, error: surveyError } = await supabase
+      .from("surveys")
+      .insert({
+        title: `${survey.title} (copie)`,
+        description: survey.description,
+        created_by: user.id,
+        site_id: survey.site_id,
+        is_active: false,
+      })
+      .select("id")
+      .single();
+
+    if (surveyError || !newSurvey) return;
+
+    // Dupliquer les questions
+    const { data: questions } = await supabase
+      .from("questions")
+      .select("*")
+      .eq("survey_id", survey.id)
+      .order("position");
+
+    if (questions && questions.length > 0) {
+      await supabase.from("questions").insert(
+        questions.map((q: Question) => ({
+          survey_id: newSurvey.id,
+          type: q.type,
+          title: q.title,
+          options: q.options,
+          position: q.position,
+        }))
+      );
+    }
+
+    // Dupliquer les associations de sites
+    const { data: surveySites } = await supabase
+      .from("survey_sites")
+      .select("site_id")
+      .eq("survey_id", survey.id);
+
+    if (surveySites && surveySites.length > 0) {
+      await supabase.from("survey_sites").insert(
+        surveySites.map((ss: { site_id: string }) => ({
+          survey_id: newSurvey.id,
+          site_id: ss.site_id,
+        }))
+      );
+    }
+
     loadDashboard();
   }
 
@@ -241,24 +298,38 @@ export default function AdminPage() {
                       {new Date(survey.created_at).toLocaleDateString("fr-FR")}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex gap-2 justify-end">
+                      <div className="flex gap-1.5 justify-end flex-wrap">
                         <Link
                           href={`/admin/results/${survey.id}`}
-                          className="text-sm px-3 py-1 rounded border transition font-medium"
+                          className="text-xs px-2.5 py-1 rounded border transition font-medium"
                           style={{ borderColor: "#E60077", color: "#E60077" }}
                         >
                           Résultats
                         </Link>
+                        <Link
+                          href={`/admin/edit/${survey.id}`}
+                          className="text-xs px-2.5 py-1 rounded border transition font-medium"
+                          style={{ borderColor: "var(--sud-border)", color: "var(--sud-dark)" }}
+                        >
+                          Modifier
+                        </Link>
+                        <button
+                          onClick={() => duplicateSurvey(survey)}
+                          className="text-xs px-2.5 py-1 border rounded transition"
+                          style={{ borderColor: "var(--sud-border)", color: "var(--sud-muted)" }}
+                        >
+                          Dupliquer
+                        </button>
                         <button
                           onClick={() => toggleActive(survey)}
-                          className="text-sm px-3 py-1 border rounded transition"
+                          className="text-xs px-2.5 py-1 border rounded transition"
                           style={{ borderColor: "var(--sud-border)", color: "var(--sud-muted)" }}
                         >
                           {survey.is_active ? "Désactiver" : "Activer"}
                         </button>
                         <button
                           onClick={() => deleteSurvey(survey.id)}
-                          className="text-sm px-3 py-1 rounded border transition"
+                          className="text-xs px-2.5 py-1 rounded border transition"
                           style={{ borderColor: "#E60077", color: "#E60077" }}
                         >
                           Supprimer
