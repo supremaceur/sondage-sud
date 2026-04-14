@@ -24,7 +24,7 @@ export default function MentionsLegalesPage() {
               sudptt@sudptt.org
             </a>
           </p>
-          <p>Directeur de la publication : Le/la secrétaire fédéral(e) de SUD P2ST.</p>
+          <p>Directeur de la publication : Kévin Gouche, élu syndical SUD.</p>
         </div>
       </section>
 
