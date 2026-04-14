@@ -42,6 +42,22 @@ export default function MentionsLegalesPage() {
             </a>
           </p>
 
+          <p className="mt-3"><strong>Nom de domaine et redirection :</strong></p>
+          <p>OVHcloud</p>
+          <p>2 rue Kellermann, 59100 Roubaix, France</p>
+          <p>
+            Le site est accessible à l'adresse :{" "}
+            <a href="https://sudptt.ovh" target="_blank" rel="noopener noreferrer" className="hover:underline font-medium" style={{ color: "#E60077" }}>
+              sudptt.ovh
+            </a>
+          </p>
+          <p>
+            Site :{" "}
+            <a href="https://www.ovhcloud.com" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "#E60077" }}>
+              ovhcloud.com
+            </a>
+          </p>
+
           <p className="mt-3"><strong>Base de données et authentification :</strong></p>
           <p>Supabase Inc.</p>
           <p>970 Toa Payoh North #07-04, Singapore 318992</p>
@@ -49,6 +65,17 @@ export default function MentionsLegalesPage() {
             Site :{" "}
             <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "#E60077" }}>
               supabase.com
+            </a>
+          </p>
+
+          <p className="mt-3"><strong>Envoi d'emails transactionnels :</strong></p>
+          <p>Resend Inc.</p>
+          <p>San Francisco, CA, États-Unis</p>
+          <p>Utilisé pour l'envoi des emails d'inscription, de réinitialisation de mot de passe et de connexion par lien magique.</p>
+          <p>
+            Site :{" "}
+            <a href="https://resend.com" target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "#E60077" }}>
+              resend.com
             </a>
           </p>
         </div>
@@ -121,6 +148,8 @@ export default function MentionsLegalesPage() {
               <li>Les super-administrateurs (résultats agrégés de tous les sites)</li>
               <li>Supabase Inc. (sous-traitant technique pour l'hébergement de la base de données)</li>
               <li>Vercel Inc. (sous-traitant technique pour l'hébergement de l'application)</li>
+              <li>OVHcloud (nom de domaine et redirection)</li>
+              <li>Resend Inc. (sous-traitant technique pour l'envoi d'emails transactionnels)</li>
             </ul>
             <p className="mt-1">
               Aucune donnée n'est transmise à des tiers à des fins commerciales.
@@ -130,7 +159,7 @@ export default function MentionsLegalesPage() {
           <div>
             <h3 className="font-semibold mb-1" style={{ color: "var(--sud-black)" }}>4.7 Transferts hors UE</h3>
             <p>
-              Les sous-traitants Vercel et Supabase opèrent depuis les États-Unis et Singapour. Ces transferts sont encadrés par les clauses contractuelles types (CCT) approuvées par la Commission européenne, conformément à l'article 46 du RGPD.
+              Les sous-traitants Vercel, Supabase et Resend opèrent depuis les États-Unis et Singapour. Le nom de domaine est géré par OVHcloud (France). Les transferts hors UE sont encadrés par les clauses contractuelles types (CCT) approuvées par la Commission européenne, conformément à l'article 46 du RGPD.
             </p>
           </div>
 
