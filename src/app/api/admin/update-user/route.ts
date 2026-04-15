@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import crypto from "crypto";
+
+/** Crée un token signé pour la confirmation d'email */
+function createEmailChangeToken(
+  userId: string,
+  newEmail: string,
+  secret: string
+): string {
+  const payload = {
+    userId,
+    newEmail,
+    exp: Date.now() + 24 * 60 * 60 * 1000, // expire dans 24h
+  };
+  const data = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(data)
+    .digest("base64url");
+  return `${data}.${signature}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,10 +46,7 @@ export async function POST(request: NextRequest) {
     const isAdmin = callerRole === "admin" || isSuperAdmin;
 
     if (!isAdmin) {
-      return NextResponse.json(
-        { error: "Accès refusé." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
     }
 
     // ── Lire les données de la requête ──
@@ -104,76 +120,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── Changement d'email ──
+    // ── Changement d'email : envoi du lien de confirmation ──
     let emailChangeRequested = false;
 
     if (email && email !== targetProfile.email) {
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       const resendApiKey = process.env.RESEND_API_KEY;
 
-      if (!serviceRoleKey) {
+      if (!serviceRoleKey || !resendApiKey) {
         return NextResponse.json(
-          { error: "Clé service_role non configurée." },
+          { error: "Configuration manquante (service_role ou Resend)." },
           { status: 500 }
         );
       }
 
-      if (!resendApiKey) {
-        return NextResponse.json(
-          { error: "Clé Resend non configurée. Impossible d'envoyer l'email de confirmation." },
-          { status: 500 }
-        );
-      }
+      // Créer un token signé contenant userId + newEmail + expiration
+      const token = createEmailChangeToken(userId, email, serviceRoleKey);
+      const origin = request.headers.get("origin") || request.nextUrl.origin;
+      const confirmationLink = `${origin}/api/admin/confirm-email?token=${token}`;
 
-      // Client admin Supabase
-      const supabaseAdmin = createSupabaseClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        serviceRoleKey,
-        { auth: { autoRefreshToken: false, persistSession: false } }
-      );
-
-      // Récupérer l'email Auth (peut différer de profiles.email)
-      const { data: authUser, error: authUserError } =
-        await supabaseAdmin.auth.admin.getUserById(userId);
-
-      if (authUserError || !authUser?.user?.email) {
-        return NextResponse.json(
-          { error: "Impossible de récupérer l'utilisateur Auth." },
-          { status: 500 }
-        );
-      }
-
-      const currentAuthEmail = authUser.user.email;
-
-      // Générer le lien de confirmation (ne change PAS l'email immédiatement)
-      const { data: linkData, error: linkError } =
-        await supabaseAdmin.auth.admin.generateLink({
-          type: "email_change_new",
-          email: currentAuthEmail,
-          newEmail: email,
-          options: {
-            redirectTo: `${request.headers.get("origin") || request.nextUrl.origin}/auth/callback`,
-          },
-        });
-
-      if (linkError || !linkData) {
-        return NextResponse.json(
-          { error: `Erreur génération du lien : ${linkError?.message ?? "Lien non généré."}` },
-          { status: 400 }
-        );
-      }
-
-      const confirmationLink = linkData.properties?.action_link;
-
-      if (!confirmationLink) {
-        return NextResponse.json(
-          { error: "Impossible de générer le lien de confirmation." },
-          { status: 500 }
-        );
-      }
-
-      // Envoyer l'email de confirmation via Resend
+      // Envoyer l'email via Resend
       const userName = targetProfile.full_name || targetProfile.email;
+      const currentEmail = targetProfile.email;
+
       const emailRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
@@ -199,7 +168,7 @@ export async function POST(request: NextRequest) {
 
                 <div style="background: #FFF9C4; border-radius: 8px; padding: 15px; margin: 20px 0;">
                   <p style="margin: 0; font-size: 14px; color: #333;">
-                    <strong>Ancienne adresse :</strong> ${currentAuthEmail}<br/>
+                    <strong>Ancienne adresse :</strong> ${currentEmail}<br/>
                     <strong>Nouvelle adresse :</strong> ${email}
                   </p>
                 </div>
@@ -216,11 +185,11 @@ export async function POST(request: NextRequest) {
                 </div>
 
                 <p style="font-size: 12px; color: #999; line-height: 1.5;">
-                  Si vous n'avez pas demandé ce changement, ignorez cet email. Votre adresse email actuelle restera inchangée.
+                  Ce lien est valable <strong>24 heures</strong>. Si vous n'avez pas demandé ce changement, ignorez cet email.
                 </p>
 
                 <p style="font-size: 12px; color: #999; line-height: 1.5;">
-                  Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :<br/>
+                  Si le bouton ne fonctionne pas, copiez ce lien :<br/>
                   <a href="${confirmationLink}" style="color: #E60077; word-break: break-all;">${confirmationLink}</a>
                 </p>
               </div>
