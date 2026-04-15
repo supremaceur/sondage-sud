@@ -6,8 +6,8 @@ import { createServerClient } from "@supabase/ssr";
 const protectedRoutes = ["/surveys", "/admin"];
 // Routes admin uniquement
 const adminRoutes = ["/admin"];
-// Routes super_admin uniquement
-const superAdminRoutes = ["/admin/users"];
+// Routes super_admin uniquement (aucune pour le moment — les restrictions sont gérées côté page)
+const superAdminRoutes: string[] = [];
 
 export async function middleware(request: NextRequest) {
   // Rafraîchit la session
