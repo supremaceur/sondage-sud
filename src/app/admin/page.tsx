@@ -250,8 +250,10 @@ export default function AdminPage() {
             </Link>
           </div>
         ) : (
+          <>
+          {/* Desktop: Table */}
           <div
-            className="rounded-xl border overflow-hidden shadow-sm"
+            className="hidden md:block rounded-xl border overflow-hidden shadow-sm"
             style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
           >
             <table className="w-full">
@@ -354,6 +356,93 @@ export default function AdminPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Mobile: Cards */}
+          <div className="md:hidden space-y-3">
+            {filteredSurveys.map((survey) => (
+              <div
+                key={survey.id}
+                className="rounded-xl border shadow-sm p-4 space-y-3"
+                style={{ background: "var(--sud-card)", borderColor: "var(--sud-border)" }}
+              >
+                {/* Header: titre + statut */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate" style={{ color: "var(--sud-black)" }}>{survey.title}</p>
+                    {survey.description && (
+                      <p className="text-xs truncate mt-0.5" style={{ color: "var(--sud-muted)" }}>{survey.description}</p>
+                    )}
+                  </div>
+                  <span
+                    className="inline-block px-2 py-1 rounded-full text-xs font-medium shrink-0"
+                    style={
+                      survey.is_active
+                        ? { background: "var(--sud-pink-light)", color: "#E60077" }
+                        : { background: "#F5F5F5", color: "#999" }
+                    }
+                  >
+                    {survey.is_active ? "Actif" : "Inactif"}
+                  </span>
+                </div>
+
+                {/* Infos: réponses, date, site */}
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: "var(--sud-muted)" }}>
+                  <span>
+                    <strong style={{ color: "#E60077" }}>{responseCountBySurvey[survey.id] || 0}</strong> réponse{(responseCountBySurvey[survey.id] || 0) > 1 ? "s" : ""}
+                  </span>
+                  <span>{new Date(survey.created_at).toLocaleDateString("fr-FR")}</span>
+                  {isSuperAdmin && (
+                    <SitesBadges
+                      singleSiteName={survey.sites?.name}
+                      multiSiteNames={surveySitesMap[survey.id]}
+                    />
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-2 pt-1" style={{ borderTop: "1px solid var(--sud-border)" }}>
+                  <Link
+                    href={`/admin/results/${survey.id}`}
+                    className="flex-1 text-center text-xs px-3 py-2 rounded-lg border transition font-medium"
+                    style={{ borderColor: "#E60077", color: "#E60077" }}
+                  >
+                    Résultats
+                  </Link>
+                  <Link
+                    href={`/admin/edit/${survey.id}`}
+                    className="flex-1 text-center text-xs px-3 py-2 rounded-lg border transition font-medium"
+                    style={{ borderColor: "var(--sud-border)", color: "var(--sud-dark)" }}
+                  >
+                    Modifier
+                  </Link>
+                  <button
+                    onClick={() => duplicateSurvey(survey)}
+                    className="flex-1 text-xs px-3 py-2 border rounded-lg transition"
+                    style={{ borderColor: "var(--sud-border)", color: "var(--sud-muted)" }}
+                  >
+                    Dupliquer
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => toggleActive(survey)}
+                    className="flex-1 text-xs px-3 py-2 border rounded-lg transition"
+                    style={{ borderColor: "var(--sud-border)", color: "var(--sud-muted)" }}
+                  >
+                    {survey.is_active ? "Désactiver" : "Activer"}
+                  </button>
+                  <button
+                    onClick={() => deleteSurvey(survey.id)}
+                    className="flex-1 text-xs px-3 py-2 rounded-lg border transition"
+                    style={{ borderColor: "#E60077", color: "#E60077" }}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          </>
         )}
       </div>
     </div>
