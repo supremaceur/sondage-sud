@@ -132,11 +132,24 @@ export async function POST(request: NextRequest) {
         { auth: { autoRefreshToken: false, persistSession: false } }
       );
 
+      // Récupérer l'email Auth (peut différer de profiles.email)
+      const { data: authUser, error: authUserError } =
+        await supabaseAdmin.auth.admin.getUserById(userId);
+
+      if (authUserError || !authUser?.user?.email) {
+        return NextResponse.json(
+          { error: "Impossible de récupérer l'utilisateur Auth." },
+          { status: 500 }
+        );
+      }
+
+      const currentAuthEmail = authUser.user.email;
+
       // Générer le lien de confirmation (ne change PAS l'email immédiatement)
       const { data: linkData, error: linkError } =
         await supabaseAdmin.auth.admin.generateLink({
           type: "email_change_new",
-          email: targetProfile.email,
+          email: currentAuthEmail,
           newEmail: email,
           options: {
             redirectTo: `${request.headers.get("origin") || request.nextUrl.origin}/auth/callback`,
@@ -186,7 +199,7 @@ export async function POST(request: NextRequest) {
 
                 <div style="background: #FFF9C4; border-radius: 8px; padding: 15px; margin: 20px 0;">
                   <p style="margin: 0; font-size: 14px; color: #333;">
-                    <strong>Ancienne adresse :</strong> ${targetProfile.email}<br/>
+                    <strong>Ancienne adresse :</strong> ${currentAuthEmail}<br/>
                     <strong>Nouvelle adresse :</strong> ${email}
                   </p>
                 </div>
