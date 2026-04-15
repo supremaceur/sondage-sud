@@ -8,17 +8,21 @@ const protectedRoutes = ["/surveys", "/admin", "/complete-profile"];
 const adminRoutes = ["/admin"];
 // Routes super_admin uniquement (aucune pour le moment — les restrictions sont gérées côté page)
 const superAdminRoutes: string[] = [];
+// Routes publiques exclues de la vérification du site
+const publicRoutes = ["/login", "/signup", "/forgot-password", "/auth", "/mentions-legales", "/api"];
 
 export async function middleware(request: NextRequest) {
   // Rafraîchit la session
   const response = await updateSession(request);
   const { pathname } = request.nextUrl;
 
-  // Vérifie si la route est protégée
+  const isPublic = publicRoutes.some((route) => pathname.startsWith(route));
   const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
   const isAdmin = adminRoutes.some((route) => pathname.startsWith(route));
+  const isCompleteProfile = pathname === "/complete-profile";
 
-  if (!isProtected) return response;
+  // Routes publiques : pas de vérification
+  if (isPublic) return response;
 
   // Crée un client Supabase pour vérifier l'utilisateur
   const supabase = createServerClient(
@@ -36,46 +40,46 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Redirige vers login si non connecté
-  if (!user) {
+  // Routes protégées : redirige vers login si non connecté
+  if (!user && isProtected) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Récupérer le profil (rôle + site)
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, site_id")
-    .eq("id", user.id)
-    .single();
+  // Si l'utilisateur est connecté, vérifier la complétion du profil
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, site_id")
+      .eq("id", user.id)
+      .single();
 
-  // Forcer la complétion du profil (site obligatoire) sauf pour les super_admins
-  const isCompleteProfile = pathname === "/complete-profile";
-  if (
-    profile &&
-    !profile.site_id &&
-    profile.role !== "super_admin" &&
-    !isCompleteProfile
-  ) {
-    return NextResponse.redirect(new URL("/complete-profile", request.url));
-  }
+    // Forcer la complétion du profil (site obligatoire) sauf super_admins
+    if (
+      profile &&
+      !profile.site_id &&
+      profile.role !== "super_admin" &&
+      !isCompleteProfile
+    ) {
+      return NextResponse.redirect(new URL("/complete-profile", request.url));
+    }
 
-  // Ne pas bloquer sur /complete-profile si le profil est complet
-  if (isCompleteProfile && profile?.site_id) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  // Vérifie le rôle admin
-  if (isAdmin) {
-    if (!profile || !["admin", "super_admin"].includes(profile.role)) {
+    // Si profil complet, ne pas rester sur /complete-profile
+    if (isCompleteProfile && profile?.site_id) {
       return NextResponse.redirect(new URL("/", request.url));
     }
 
-    // Vérifie le rôle super_admin pour les routes dédiées
-    const isSuperAdminRoute = superAdminRoutes.some((route) => pathname.startsWith(route));
-    if (isSuperAdminRoute && profile.role !== "super_admin") {
-      return NextResponse.redirect(new URL("/admin", request.url));
+    // Vérifie le rôle admin
+    if (isAdmin) {
+      if (!profile || !["admin", "super_admin"].includes(profile.role)) {
+        return NextResponse.redirect(new URL("/", request.url));
+      }
+
+      const isSuperAdminRoute = superAdminRoutes.some((route) => pathname.startsWith(route));
+      if (isSuperAdminRoute && profile.role !== "super_admin") {
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
     }
   }
 
