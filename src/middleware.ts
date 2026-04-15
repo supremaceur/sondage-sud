@@ -3,7 +3,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 
 // Routes protégées : nécessitent une connexion
-const protectedRoutes = ["/surveys", "/admin"];
+const protectedRoutes = ["/surveys", "/admin", "/complete-profile"];
 // Routes admin uniquement
 const adminRoutes = ["/admin"];
 // Routes super_admin uniquement (aucune pour le moment — les restrictions sont gérées côté page)
@@ -43,14 +43,31 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Récupérer le profil (rôle + site)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, site_id")
+    .eq("id", user.id)
+    .single();
+
+  // Forcer la complétion du profil (site obligatoire) sauf pour les super_admins
+  const isCompleteProfile = pathname === "/complete-profile";
+  if (
+    profile &&
+    !profile.site_id &&
+    profile.role !== "super_admin" &&
+    !isCompleteProfile
+  ) {
+    return NextResponse.redirect(new URL("/complete-profile", request.url));
+  }
+
+  // Ne pas bloquer sur /complete-profile si le profil est complet
+  if (isCompleteProfile && profile?.site_id) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   // Vérifie le rôle admin
   if (isAdmin) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
     if (!profile || !["admin", "super_admin"].includes(profile.role)) {
       return NextResponse.redirect(new URL("/", request.url));
     }
