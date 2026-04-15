@@ -19,8 +19,8 @@ export const metadata: Metadata = {
   title: "SUD P2ST — Sondages",
   description: "Plateforme de sondages syndicaux SUD P2ST",
   icons: {
-    icon: "/icon.png",
-    apple: "/icon.png",
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
   },
 };
 
