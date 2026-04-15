@@ -94,7 +94,7 @@ export default function Header() {
                   <>
                     <NavLink href="/surveys" active={isActive("/surveys")}>Sondages</NavLink>
                     {isAdmin && <NavLink href="/admin" active={isActive("/admin") && !isActive("/admin/users")}>Admin</NavLink>}
-                    {role === "super_admin" && <NavLink href="/admin/users" active={isActive("/admin/users")}>Utilisateurs</NavLink>}
+                    {isAdmin && <NavLink href="/admin/users" active={isActive("/admin/users")}>Utilisateurs</NavLink>}
 
                     <div className="flex flex-col items-end text-sm">
                       <span className="text-white font-medium">
@@ -175,7 +175,7 @@ export default function Header() {
                       Administration
                     </MobileNavLink>
                   )}
-                  {role === "super_admin" && (
+                  {isAdmin && (
                     <MobileNavLink href="/admin/users" active={isActive("/admin/users")} onClick={handleNavClick}>
                       <MenuIcon d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm14 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                       Utilisateurs
