@@ -322,6 +322,13 @@ export default function AdminPage() {
                           Résultats
                         </Link>
                         <Link
+                          href={`/admin/participants/${survey.id}`}
+                          className="text-xs px-2.5 py-1 rounded border transition font-medium"
+                          style={{ borderColor: "var(--sud-border)", color: "var(--sud-dark)" }}
+                        >
+                          Participants
+                        </Link>
+                        <Link
                           href={`/admin/edit/${survey.id}`}
                           className="text-xs px-2.5 py-1 rounded border transition font-medium"
                           style={{ borderColor: "var(--sud-border)", color: "var(--sud-dark)" }}
@@ -408,6 +415,15 @@ export default function AdminPage() {
                   >
                     Résultats
                   </Link>
+                  <Link
+                    href={`/admin/participants/${survey.id}`}
+                    className="flex-1 text-center text-xs px-3 py-2 rounded-lg border transition font-medium"
+                    style={{ borderColor: "var(--sud-border)", color: "var(--sud-dark)" }}
+                  >
+                    Participants
+                  </Link>
+                </div>
+                <div className="flex flex-wrap gap-2">
                   <Link
                     href={`/admin/edit/${survey.id}`}
                     className="flex-1 text-center text-xs px-3 py-2 rounded-lg border transition font-medium"
