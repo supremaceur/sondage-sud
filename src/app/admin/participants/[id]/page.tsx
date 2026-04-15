@@ -103,12 +103,25 @@ export default function ParticipantsPage() {
 
     setDeleting(responseId);
 
-    // Supprimer les réponses (answers) puis la participation (response)
-    await supabase.from("answers").delete().eq("response_id", responseId);
-    await supabase.from("responses").delete().eq("id", responseId);
+    try {
+      const res = await fetch("/api/admin/delete-participation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ responseId }),
+      });
 
-    setParticipants((prev) => prev.filter((p) => p.responseId !== responseId));
-    setDeleting(null);
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Erreur lors de la suppression.");
+        return;
+      }
+
+      setParticipants((prev) => prev.filter((p) => p.responseId !== responseId));
+    } catch {
+      alert("Erreur de connexion au serveur.");
+    } finally {
+      setDeleting(null);
+    }
   }
 
   const filtered = search.trim()
