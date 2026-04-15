@@ -16,8 +16,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sondage SUD",
-  description: "Application de sondages SUD P2ST",
+  title: "SUD P2ST — Sondages",
+  description: "Plateforme de sondages syndicaux SUD P2ST",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
 };
 
 export default function RootLayout({
