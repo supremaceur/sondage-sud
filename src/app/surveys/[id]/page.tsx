@@ -10,7 +10,7 @@ type AnswerValue = string | string[] | number;
 
 export default function SurveyResponsePage() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
   const supabase = createClient();
 
@@ -35,7 +35,15 @@ export default function SurveyResponsePage() {
         setLoading(false);
         return;
       }
-      setSurvey(surveyData as Survey);
+
+      // Vérifier que l'utilisateur a le droit d'accéder à ce sondage
+      const s = surveyData as Survey;
+      if (s.site_id && profile?.site_id && s.site_id !== profile.site_id) {
+        router.push("/surveys");
+        return;
+      }
+
+      setSurvey(s);
 
       const { data: questionsData } = await supabase
         .from("questions")

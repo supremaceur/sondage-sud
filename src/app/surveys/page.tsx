@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Survey } from "@/types";
 
 export default function SurveysPage() {
-  const { user, role } = useAuth();
+  const { user, role, profile } = useAuth();
   const isAdmin = role === "admin" || role === "super_admin";
   const supabase = createClient();
   const [surveys, setSurveys] = useState<Survey[]>([]);
@@ -22,7 +22,15 @@ export default function SurveysPage() {
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
-      setSurveys((surveysData as Survey[]) ?? []);
+      // Filtrer : afficher seulement les sondages de son site ou sans site (tous)
+      const userSiteId = profile?.site_id;
+      const filtered = (surveysData as Survey[] ?? []).filter((s) => {
+        if (!s.site_id) return true; // Sondage pour tous les sites
+        if (!userSiteId) return true; // Utilisateur sans site → voit tout (super_admin)
+        return s.site_id === userSiteId; // Sondage du même site
+      });
+
+      setSurveys(filtered);
 
       if (user) {
         const { data: responsesData } = await supabase
@@ -37,7 +45,7 @@ export default function SurveysPage() {
       setLoading(false);
     }
     load();
-  }, [user]);
+  }, [user, profile]);
 
   if (loading) {
     return <p style={{ color: "var(--sud-muted)" }}>Chargement des sondages...</p>;
