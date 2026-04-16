@@ -81,7 +81,15 @@ function UserDashboard() {
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
-      setActiveSurveys((surveys as Survey[]) ?? []);
+      // Filtrer par site : afficher seulement les sondages de son site ou sans site
+      const userSiteId = profile?.site_id;
+      const filtered = (surveys as Survey[] ?? []).filter((s) => {
+        if (!s.site_id) return true; // Sondage pour tous les sites
+        if (!userSiteId) return true; // Utilisateur sans site → voit tout (super_admin)
+        return s.site_id === userSiteId; // Sondage du même site
+      });
+
+      setActiveSurveys(filtered);
 
       const { data: responses } = await supabase
         .from("responses")
