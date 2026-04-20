@@ -36,9 +36,15 @@ export default function ParticipantsPage() {
     // Charger le sondage
     const { data: survey } = await supabase
       .from("surveys")
-      .select("title")
+      .select("title, site_id")
       .eq("id", id)
       .single();
+
+    // Vérifier l'accès : un admin ne peut voir que les sondages de son site
+    if (survey && isAdmin && userProfile?.site_id && survey.site_id && survey.site_id !== userProfile.site_id) {
+      window.location.href = "/admin";
+      return;
+    }
 
     setSurveyTitle(survey?.title ?? "");
 

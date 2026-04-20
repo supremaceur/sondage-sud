@@ -19,7 +19,7 @@ interface ResponseRow {
 }
 
 export default function AdminPage() {
-  const { role, site: userSite, user } = useAuth();
+  const { role, site: userSite, user, profile } = useAuth();
   const supabase = createClient();
   const router = useRouter();
 
@@ -44,8 +44,19 @@ export default function AdminPage() {
       supabase.from("survey_sites").select("survey_id, sites(name)"),
     ]);
 
-    setSurveys((surveysResult.data as SurveyWithSite[]) ?? []);
-    setResponses((responsesResult.data as ResponseRow[]) ?? []);
+    // Filtrer les sondages par site pour les admins non-super_admin
+    const allSurveysData = (surveysResult.data as SurveyWithSite[]) ?? [];
+    const adminSiteId = !isSuperAdmin ? profile?.site_id : null;
+    const visibleSurveys = adminSiteId
+      ? allSurveysData.filter((s) => !s.site_id || s.site_id === adminSiteId)
+      : allSurveysData;
+
+    setSurveys(visibleSurveys);
+
+    // Filtrer les réponses selon les sondages visibles
+    const visibleSurveyIds = new Set(visibleSurveys.map((s) => s.id));
+    const allResponses = (responsesResult.data as ResponseRow[]) ?? [];
+    setResponses(allResponses.filter((r) => visibleSurveyIds.has(r.survey_id)));
 
     // Construire la map survey_id → noms de sites
     const ssMap: Record<string, string[]> = {};

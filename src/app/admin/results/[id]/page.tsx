@@ -39,7 +39,15 @@ export default function ResultsPage() {
         .eq("id", id)
         .single();
 
-      setSurvey(surveyData as SurveyWithSite | null);
+      const s = surveyData as SurveyWithSite | null;
+
+      // Vérifier l'accès : un admin ne peut voir que les sondages de son site
+      if (s && isAdmin && userProfile?.site_id && s.site_id && s.site_id !== userProfile.site_id) {
+        window.location.href = "/admin";
+        return;
+      }
+
+      setSurvey(s);
 
       const { data: questionsData } = await supabase
         .from("questions")

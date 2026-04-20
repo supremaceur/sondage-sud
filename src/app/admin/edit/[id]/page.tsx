@@ -40,6 +40,12 @@ export default function EditSurveyPage() {
         return;
       }
 
+      // Vérifier l'accès : un admin ne peut modifier que les sondages de son site
+      if (!isSuperAdmin && profile?.site_id && survey.site_id && survey.site_id !== profile.site_id) {
+        window.location.href = "/admin";
+        return;
+      }
+
       setTitle(survey.title);
       setDescription(survey.description || "");
       setIsActive(survey.is_active);
